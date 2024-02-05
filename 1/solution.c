@@ -1,6 +1,9 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <time.h>
+#include <limits.h>
+#include "mergesort.h"
+#include "containers.h"
+#include "util.h"
 #include "libcoro.h"
 
 /**
@@ -11,15 +14,24 @@
  */
 
 struct my_context {
-	char *name;
-	/** ADD HERE YOUR OWN MEMBERS, SUCH AS FILE NAME, WORK TIME, ... */
+	int i;
+	double coroutine_latency;
+	char* name;
+	int* total_numbers_count;
+	struct filename_container* filename_container;
+	struct array_container** array_containers;
 };
 
 static struct my_context *
-my_context_new(const char *name)
+my_context_new(int i, double coroutine_latency, char* name, int* total_numbers_count, struct filename_container* filename_container, struct array_container** array_containers)
 {
 	struct my_context *ctx = malloc(sizeof(*ctx));
+	ctx->i = i;
+	ctx->coroutine_latency = coroutine_latency;
 	ctx->name = strdup(name);
+	ctx->filename_container = filename_container;
+	ctx->total_numbers_count = total_numbers_count;
+	ctx->array_containers = array_containers;
 	return ctx;
 }
 
@@ -31,87 +43,152 @@ my_context_delete(struct my_context *ctx)
 }
 
 /**
- * A function, called from inside of coroutines recursively. Just to demonstrate
- * the example. You can split your code into multiple functions, that usually
- * helps to keep the individual code blocks simple.
- */
-static void
-other_function(const char *name, int depth)
-{
-	printf("%s: entered function, depth = %d\n", name, depth);
-	coro_yield();
-	if (depth < 3)
-		other_function(name, depth + 1);
-}
-
-/**
  * Coroutine body. This code is executed by all the coroutines. Here you
  * implement your solution, sort each individual file.
  */
 static int
-coroutine_func_f(void *context)
-{
-	/* IMPLEMENT SORTING OF INDIVIDUAL FILES HERE. */
-
+coroutine_mergesort_single_file(void *context)
+{	
 	struct coro *this = coro_this();
 	struct my_context *ctx = context;
-	char *name = ctx->name;
-	printf("Started coroutine %s\n", name);
-	printf("%s: switch count %lld\n", name, coro_switch_count(this));
-	printf("%s: yield\n", name);
-	coro_yield();
+	
 
-	printf("%s: switch count %lld\n", name, coro_switch_count(this));
-	printf("%s: yield\n", name);
-	coro_yield();
+	printf("Started coroutine %s\n", ctx->name);
 
-	printf("%s: switch count %lld\n", name, coro_switch_count(this));
-	other_function(name, 1);
-	printf("%s: switch count after other function %lld\n", name,
-	       coro_switch_count(this));
+	while (ctx->filename_container->current_file_index < ctx->filename_container->count) {
+		int file_index = ctx->filename_container->current_file_index;
+		char* filename = ctx->filename_container->filenames[file_index];
+
+		printf("Coroutine %s sorting file %s...\n", ctx->name, filename);
+
+		FILE* file = fopen(filename, "r");
+		if (!file) {
+			my_context_delete(ctx);
+			return 0;
+		}
+
+		ctx->filename_container->current_file_index += 1;
+
+		int numbers_count = count_numbers_in_file(file);
+		*ctx->total_numbers_count += numbers_count;
+
+		ctx->array_containers[file_index] = malloc(sizeof(struct array_container));
+		ctx->array_containers[file_index]->array = malloc(numbers_count * sizeof(int));
+		ctx->array_containers[file_index]->size = numbers_count;
+		initialize_array(file, ctx->array_containers[file_index]->array);
+		fclose(file);
+
+		struct timespec start_time;
+		clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+		mergesort(ctx->array_containers[file_index]->array, numbers_count, sizeof(int), int_lt_cmp, &start_time, ctx->coroutine_latency);
+	}
+
+	printf("%s: switch count after other function %lld\n", ctx->name,
+			coro_switch_count(this));
 
 	my_context_delete(ctx);
 	/* This will be returned from coro_status(). */
 	return 0;
 }
 
+
 int
 main(int argc, char **argv)
-{
-	/* Delete these suppressions when start using the args. */
-	(void)argc;
-	(void)argv;
+{	
+	/* Setting up initial time */
+	struct timespec monotime_start;
+    clock_gettime(CLOCK_MONOTONIC, &monotime_start);
+
+	/* Startup arguments initialization */
+	int file_count = argc - 3;
+	int corountine_count = atoi(argv[1]);
+	double target_latency = atof(argv[2]);
+	double coroutine_latency = (target_latency / corountine_count) / 1000000;
+
+	int total_numbers_count = 0;
+	struct array_container** array_containers = malloc(file_count * sizeof(struct array_container*));
+	struct filename_container filename_container = {file_count, 0, &argv[3]};
+
 	/* Initialize our coroutine global cooperative scheduler. */
 	coro_sched_init();
+	
 	/* Start several coroutines. */
-	for (int i = 0; i < 3; ++i) {
+
+	for (int i = 0; i < corountine_count; ++i) {
 		/*
 		 * The coroutines can take any 'void *' interpretation of which
 		 * depends on what you want. Here as an example I give them
 		 * some names.
 		 */
 		char name[16];
-		sprintf(name, "coro_%d", i);
-		/*
-		 * I have to copy the name. Otherwise all the coroutines would
-		 * have the same name when they finally start.
-		 */
-		coro_new(coroutine_func_f, my_context_new(name));
+		sprintf(name, "coro_%d", i + 1);
+
+		coro_new(
+			coroutine_mergesort_single_file, 
+			my_context_new(i, coroutine_latency, name, &total_numbers_count, &filename_container, array_containers));
 	}
+
 	/* Wait for all the coroutines to end. */
-	struct coro *c;
+	struct coro* c;
 	while ((c = coro_sched_wait()) != NULL) {
-		/*
-		 * Each 'wait' returns a finished coroutine with which you can
-		 * do anything you want. Like check its exit status, for
-		 * example. Don't forget to free the coroutine afterwards.
-		 */
-		printf("Finished %d\n", coro_status(c));
-		coro_delete(c);
+		if (c != NULL){
+			printf("Finished with status %d\n", coro_status(c));
+			coro_delete(c);
+		}
 	}
 	/* All coroutines have finished. */
 
 	/* IMPLEMENT MERGING OF THE SORTED ARRAYS HERE. */
+
+    FILE *output_file = fopen("out.txt", "w");
+    if (output_file == NULL) {
+        exit(EXIT_FAILURE);
+    }
+
+    int *pos = (int *)calloc(file_count, sizeof(int));
+
+    int min = INT_MAX;
+    int array_index_with_min = 0;
+    int count_index = 0; 
+
+    while (1){
+		min = INT_MAX;
+
+        for (int i = 0; i < file_count; ++i) {
+			if (pos[i] < array_containers[i]->size){
+				int current_element = array_containers[i]->array[pos[i]];
+				if (current_element < min){
+					min = current_element;
+					array_index_with_min = i;
+				}
+			}
+        }
+		fprintf(output_file, "%d ", min);
+
+        pos[array_index_with_min] += 1;
+
+        count_index++;
+        if (count_index == total_numbers_count){
+            break;
+        }
+    }
+
+	for (int i = 0; i < file_count; ++i){
+		free(array_containers[i]->array);
+		free(array_containers[i]);
+	}
+
+	free(pos);
+	free(array_containers);
+	fclose(output_file);
+
+
+	/* Setting up end time */
+	struct timespec monotime_end;
+    clock_gettime(CLOCK_MONOTONIC, &monotime_end);
+
+	printf("Execution time = %f s\n", get_time_difference(monotime_start, monotime_end));
 
 	return 0;
 }
