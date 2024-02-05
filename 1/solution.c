@@ -52,7 +52,6 @@ coroutine_mergesort_single_file(void *context)
 	struct coro *this = coro_this();
 	struct my_context *ctx = context;
 	
-
 	printf("Started coroutine %s\n", ctx->name);
 
 	while (ctx->filename_container->current_file_index < ctx->filename_container->count) {
@@ -98,7 +97,7 @@ main(int argc, char **argv)
 {	
 	/* Setting up initial time */
 	struct timespec monotime_start;
-    clock_gettime(CLOCK_MONOTONIC, &monotime_start);
+	clock_gettime(CLOCK_MONOTONIC, &monotime_start);
 
 	/* Startup arguments initialization */
 	int file_count = argc - 3;
@@ -141,21 +140,21 @@ main(int argc, char **argv)
 
 	/* IMPLEMENT MERGING OF THE SORTED ARRAYS HERE. */
 
-    FILE *output_file = fopen("out.txt", "w");
-    if (output_file == NULL) {
-        exit(EXIT_FAILURE);
-    }
+	FILE *output_file = fopen("out.txt", "w");
+	if (output_file == NULL) {
+		exit(EXIT_FAILURE);
+	}
 
-    int *pos = (int *)calloc(file_count, sizeof(int));
+	int *pos = (int *)calloc(file_count, sizeof(int));
 
-    int min = INT_MAX;
-    int array_index_with_min = 0;
-    int count_index = 0; 
+	int min = INT_MAX;
+	int array_index_with_min = 0;
+	int count_index = 0; 
 
-    while (1){
+	while (1){
 		min = INT_MAX;
 
-        for (int i = 0; i < file_count; ++i) {
+		for (int i = 0; i < file_count; ++i) {
 			if (pos[i] < array_containers[i]->size){
 				int current_element = array_containers[i]->array[pos[i]];
 				if (current_element < min){
@@ -163,16 +162,16 @@ main(int argc, char **argv)
 					array_index_with_min = i;
 				}
 			}
-        }
+		}
 		fprintf(output_file, "%d ", min);
 
-        pos[array_index_with_min] += 1;
+		pos[array_index_with_min] += 1;
 
-        count_index++;
-        if (count_index == total_numbers_count){
-            break;
-        }
-    }
+		count_index++;
+		if (count_index == total_numbers_count){
+			break;
+		}
+	}
 
 	for (int i = 0; i < file_count; ++i){
 		free(array_containers[i]->array);
@@ -186,8 +185,7 @@ main(int argc, char **argv)
 
 	/* Setting up end time */
 	struct timespec monotime_end;
-    clock_gettime(CLOCK_MONOTONIC, &monotime_end);
-
+	clock_gettime(CLOCK_MONOTONIC, &monotime_end);
 	printf("Execution time = %f s\n", get_time_difference(monotime_start, monotime_end));
 
 	return 0;

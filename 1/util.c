@@ -30,13 +30,13 @@ double get_time_difference(struct timespec monotime_start, struct timespec monot
 }
 
 void yield_on_time(struct timespec* start_time, double coroutine_latency){
-    struct timespec current_time;
-    clock_gettime(CLOCK_MONOTONIC, &current_time);
+	struct timespec current_time;
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
-    double time_difference = get_time_difference(*start_time, current_time);
+	double time_difference = get_time_difference(*start_time, current_time);
 
-    if (time_difference >= coroutine_latency){
-        coro_yield();
-        clock_gettime(CLOCK_MONOTONIC, start_time);
-    }
+	if (time_difference >= coroutine_latency){
+		coro_yield();
+		clock_gettime(CLOCK_MONOTONIC, start_time);
+	}
 }
