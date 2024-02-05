@@ -37,7 +37,7 @@ int merge(
 			if (cmp > 0){
 				memcpy(array_element, right_element, element_size);
 				right_index++;
-            }
+			}
 			else {
 				memcpy(array_element, left_element, element_size);
 				left_index++;
