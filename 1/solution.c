@@ -49,6 +49,9 @@ my_context_delete(struct my_context *ctx)
 static int
 coroutine_mergesort_single_file(void *context)
 {	
+	struct timespec coroutine_start_time;
+	clock_gettime(CLOCK_MONOTONIC, &coroutine_start_time);
+
 	struct coro *this = coro_this();
 	struct my_context *ctx = context;
 	
@@ -86,6 +89,11 @@ coroutine_mergesort_single_file(void *context)
 	printf("%s: switch count after other function %lld\n", ctx->name,
 			coro_switch_count(this));
 
+	struct timespec coroutine_end_time;
+	clock_gettime(CLOCK_MONOTONIC, &coroutine_end_time);
+
+	printf("%s: execution time = %f s\n", ctx->name, get_time_difference(coroutine_start_time, coroutine_end_time));
+	
 	my_context_delete(ctx);
 	/* This will be returned from coro_status(). */
 	return 0;
