@@ -70,7 +70,8 @@ int mergesort(
 	size_t elements, size_t element_size,
 	int (*comparator)(const void *, const void *),
 	struct timespec* start_time,
-	float latency
+	float latency,
+	double* yield_delay_time
 ){  
 	int status = 0;
 
@@ -84,12 +85,12 @@ int mergesort(
 		void* right_array = array + m * element_size;
 		size_t right_array_size = r - m; 
 
-		mergesort(left_array, left_array_size, element_size, comparator, start_time, latency);
-		mergesort(right_array, right_array_size, element_size, comparator, start_time, latency);
+		mergesort(left_array, left_array_size, element_size, comparator, start_time, latency, yield_delay_time);
+		mergesort(right_array, right_array_size, element_size, comparator, start_time, latency, yield_delay_time);
  
 		status = merge(array, m, r, element_size, comparator);
 
-		yield_on_time(start_time, latency);
+		yield_on_time(start_time, latency, yield_delay_time);
 	}
 
 	return status;

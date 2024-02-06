@@ -29,14 +29,17 @@ double get_time_difference(struct timespec monotime_start, struct timespec monot
 	return (double) elapsed_ns/ 1000000;
 }
 
-void yield_on_time(struct timespec* start_time, double coroutine_latency){
-	struct timespec current_time;
+void yield_on_time(struct timespec* start_time, double coroutine_latency, double* yield_delay_time){
+	struct timespec current_time, yield_start_time, yield_end_time;
 	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
 	double time_difference = get_time_difference(*start_time, current_time);
 
 	if (time_difference >= coroutine_latency){
+		clock_gettime(CLOCK_MONOTONIC, &yield_start_time);
 		coro_yield();
-		clock_gettime(CLOCK_MONOTONIC, start_time);
+		clock_gettime(CLOCK_MONOTONIC, &yield_end_time);
+		*start_time = yield_end_time;
+		*yield_delay_time += get_time_difference(yield_start_time, yield_end_time);
 	}
 }
