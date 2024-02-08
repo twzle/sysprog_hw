@@ -49,7 +49,7 @@ my_context_delete(struct my_context *ctx)
 static int
 coroutine_mergesort_single_file(void *context)
 {	
-	double yield_delay_time;
+	double yield_delay_time = 0;
 	struct timespec coroutine_start_time, coroutine_end_time;
 	clock_gettime(CLOCK_MONOTONIC, &coroutine_start_time);
 
