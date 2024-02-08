@@ -65,7 +65,7 @@ int merge(
 	}
 
 
-int mergesort(
+int custom_mergesort(
 	void *array,
 	size_t elements, size_t element_size,
 	int (*comparator)(const void *, const void *),
@@ -85,8 +85,8 @@ int mergesort(
 		void* right_array = array + m * element_size;
 		size_t right_array_size = r - m; 
 
-		mergesort(left_array, left_array_size, element_size, comparator, start_time, latency, yield_delay_time);
-		mergesort(right_array, right_array_size, element_size, comparator, start_time, latency, yield_delay_time);
+		custom_mergesort(left_array, left_array_size, element_size, comparator, start_time, latency, yield_delay_time);
+		custom_mergesort(right_array, right_array_size, element_size, comparator, start_time, latency, yield_delay_time);
  
 		status = merge(array, m, r, element_size, comparator);
 

@@ -84,7 +84,7 @@ coroutine_mergesort_single_file(void *context)
 		struct timespec start_time;
 		clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-		mergesort(ctx->array_containers[file_index]->array, numbers_count, sizeof(int), int_lt_cmp, &start_time, ctx->coroutine_latency, &yield_delay_time);
+		custom_mergesort(ctx->array_containers[file_index]->array, numbers_count, sizeof(int), int_lt_cmp, &start_time, ctx->coroutine_latency, &yield_delay_time);
 	}
 
 	printf("%s: switch count after other function %lld\n", ctx->name,
@@ -92,7 +92,7 @@ coroutine_mergesort_single_file(void *context)
 
 	clock_gettime(CLOCK_MONOTONIC, &coroutine_end_time);
 
-	printf("%s: execution time = %f s\n", ctx->name, get_time_difference(coroutine_start_time, coroutine_end_time) - yield_delay_time);
+	printf("%s: execution time = %f s\n", ctx->name, (get_time_difference(coroutine_start_time, coroutine_end_time) - yield_delay_time) / 1000000);
 	
 	my_context_delete(ctx);
 	/* This will be returned from coro_status(). */
@@ -111,7 +111,7 @@ main(int argc, char **argv)
 	int file_count = argc - 3;
 	int corountine_count = atoi(argv[1]);
 	double target_latency = atof(argv[2]);
-	double coroutine_latency = (target_latency / corountine_count) / 1000000;
+	double coroutine_latency = (target_latency / corountine_count); // microseconds
 
 	int total_numbers_count = 0;
 	struct array_container** array_containers = malloc(file_count * sizeof(struct array_container*));
@@ -194,7 +194,7 @@ main(int argc, char **argv)
 	/* Setting up end time */
 	struct timespec monotime_end;
 	clock_gettime(CLOCK_MONOTONIC, &monotime_end);
-	printf("Execution time = %f s\n", get_time_difference(monotime_start, monotime_end));
+	printf("Execution time = %f s\n", get_time_difference(monotime_start, monotime_end) / 1000000);
 
 	return 0;
 }

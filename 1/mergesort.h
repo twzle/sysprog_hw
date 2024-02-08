@@ -9,7 +9,7 @@ int merge(
 	size_t r, size_t element_size, 
 	int (*comparator)(const void *, const void *));
 
-int mergesort(
+int custom_mergesort(
 	void *array,
 	size_t elements, size_t element_size,
 	int (*comparator)(const void *, const void *),

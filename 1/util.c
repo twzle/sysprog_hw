@@ -25,8 +25,8 @@ void initialize_array(FILE* file, int* array){
 }
 
 double get_time_difference(struct timespec monotime_start, struct timespec monotime_end){
-	long long elapsed_ns = ((monotime_end.tv_sec - monotime_start.tv_sec) * 1000000000 + (monotime_end.tv_nsec - monotime_start.tv_nsec)) / 1000;
-	return (double) elapsed_ns/ 1000000;
+	long long elapsed_ns = (monotime_end.tv_sec - monotime_start.tv_sec) * 1000000000 + (monotime_end.tv_nsec - monotime_start.tv_nsec);
+	return (double) elapsed_ns / 1000;
 }
 
 void yield_on_time(struct timespec* start_time, double coroutine_latency, double* yield_delay_time){
