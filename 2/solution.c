@@ -11,13 +11,19 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
-void execute_command(const struct expr *e, const struct command_line *line, int *exit_status, int *before_pipe, int *after_pipe, int* fd)
-{
-	// printf("PIPE BEFORE: %d, PIPE AFTER %d\n", *before_pipe, *after_pipe);
-	fprintf(stderr, "%d %d\n", fd[0], fd[1]);
-	// int stdin_copy = dup(STDIN_FILENO);
-	// int stdout_copy = dup(STDOUT_FILENO);
 
+int handle_exit_cmd(char *cmd, int* exit_status){
+	if (strcmp(cmd, "exit") == 0)
+	{
+		*exit_status = 1;
+		return 1;
+	}
+
+	return 0;
+}
+
+void execute_command(const struct expr *e, const struct command_line *line, int *exit_status, int *before_pipe, int *after_pipe, int* fd_prev, int* fd_next, int* p2p_count)
+{
 	char *argv[e->cmd.arg_count + 2];
 	argv[0] = e->cmd.exe;
 	for (uint32_t i = 0; i < e->cmd.arg_count; i++)
@@ -39,15 +45,11 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 		else if (e->cmd.arg_count > 1)
 			printf("bash: %s: too many arguments\n", e->cmd.exe);
 	}
-	else if (strcmp(e->cmd.exe, "exit") == 0)
-	{
-		*exit_status = 1;
-		return;
-	}
 	else
 	{
 		if (*after_pipe == 0 && *before_pipe == 0)
 		{
+			if (handle_exit_cmd(e->cmd.exe, exit_status) != 0){ return; }
 			int pid = fork();
 			if (pid == 0)
 			{
@@ -56,20 +58,19 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 					int error = execvp(e->cmd.exe, argv);
 					if (error != 0)
 					{
-						printf("%s: command not found\n", e->cmd.exe);
 						execlp("sh", "sh", "-c", "exit", NULL);
 					}
 				}
 				else if (line->out_type == OUTPUT_TYPE_FILE_NEW)
 				{
-					int fd = open(line->out_file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-					dup2(fd, 1);
+					int file = open(line->out_file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+					dup2(file, STDOUT_FILENO);
 					execvp(e->cmd.exe, argv);
 				}
 				else if (line->out_type == OUTPUT_TYPE_FILE_APPEND)
 				{
-					int fd = open(line->out_file, O_RDWR | O_APPEND, S_IRUSR | S_IWUSR);
-					dup2(fd, 1);
+					int file = open(line->out_file, O_RDWR | O_APPEND, S_IRUSR | S_IWUSR);
+					dup2(file, STDOUT_FILENO);
 					execvp(e->cmd.exe, argv);
 				}
 			}
@@ -87,14 +88,14 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			int pid = fork();
 			if (pid == 0)
 			{
-				// fprintf(stderr, "%d\n", close(fd[0]));
-				fprintf(stderr, "%d\n", dup2(fd[1], STDOUT_FILENO));
-				close(fd[1]);
-				close(fd[0]);
+				dup2(fd_prev[1], STDOUT_FILENO);
+				close(fd_prev[1]);
+				close(fd_prev[0]);
+				close(fd_next[1]);
+				close(fd_next[0]);
 				int error = execvp(e->cmd.exe, argv);
 				if (error != 0)
 				{
-					printf("%s: command not found\n", e->cmd.exe);
 					execlp("sh", "sh", "-c", "exit", NULL);
 				}
 			}
@@ -103,13 +104,7 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			}
 			else if (pid > 0)
 			{	 
-				// int new_fd = 89;// close(fd[0]);
-				// dup2(fd[1], new_fd);
-				close(fd[1]);
-
-				// dup2(fd[1], new_fd);
-				// close(new_fd);
-				// fprintf(stderr, "%d\n", new_fd);
+				close(fd_prev[1]);
 
 				if (wait(&status) >= 0)
 				{
@@ -118,17 +113,28 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			}
 
 		} else if (*after_pipe == 1 && *before_pipe == 1) {
+
 			int pid = fork();
 			if (pid == 0)
 			{
-				fprintf(stderr, "%d\n", dup2(fd[0], STDIN_FILENO));
-				fprintf(stderr, "%d\n", dup2(fd[1], STDOUT_FILENO));
-				close(fd[1]);
-				close(fd[0]);
+				if (*p2p_count % 2 == 0){
+					dup2(fd_prev[0], STDIN_FILENO);
+					dup2(fd_next[1], STDOUT_FILENO);
+					close(fd_prev[1]);
+					close(fd_prev[0]);
+					close(fd_next[1]);
+					close(fd_next[0]);
+				} else {
+					dup2(fd_next[0], STDIN_FILENO);
+					dup2(fd_prev[1], STDOUT_FILENO);
+					close(fd_prev[1]);
+					close(fd_prev[0]);
+					close(fd_next[1]);
+					close(fd_next[0]);
+				}
 				int error = execvp(e->cmd.exe, argv);
 				if (error != 0)
 				{
-					printf("%s: command not found\n", e->cmd.exe);
 					execlp("sh", "sh", "-c", "exit", NULL);
 				}
 			}
@@ -137,13 +143,19 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			}
 			else if (pid > 0)
 			{	 
-				// close(fd[0]);
-				// close(fd[1]);
-				// close(new_fd);
-				// fprintf(stderr, "%d\n", new_fd);
+				if (*p2p_count % 2 == 0){
+					close(fd_next[1]);
+					close(fd_prev[0]);
+					pipe(fd_prev);
+				} else {
+					close(fd_prev[1]);
+					close(fd_next[0]);
+					pipe(fd_next);
+				}
 
 				if (wait(&status) >= 0)
 				{
+					*p2p_count += 1;
 					printf("Child process exited with %d status\n", WEXITSTATUS(status));
 				}
 			}	
@@ -153,35 +165,65 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			{
 				if (line->out_type == OUTPUT_TYPE_STDOUT)
 				{	
-					fprintf(stderr, "%d\n", dup2(fd[0], STDIN_FILENO));
-					// fprintf(stderr, "%d\n", dup2(STDOUT_FILENO, fd[1]));
-					close(fd[0]);
-					// fprintf(stderr, "%d\n", close(fd[1]));
+					if (*p2p_count % 2 == 1){
+						dup2(fd_next[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					} else {
+						dup2(fd_prev[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					}
 					int error = execvp(e->cmd.exe, argv);
 					if (error != 0)
 					{
-						printf("%s: command not found\n", e->cmd.exe);
 						execlp("sh", "sh", "-c", "exit", NULL);
 					}
 				}
 				else if (line->out_type == OUTPUT_TYPE_FILE_NEW)
 				{
+					if (*p2p_count % 2 == 1){
+						dup2(fd_next[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					} else {
+						dup2(fd_prev[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					}
+					
 					int file = open(line->out_file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-					fprintf(stderr, "%d\n", dup2(fd[0], STDIN_FILENO));
-					fprintf(stderr, "%d\n", dup2(file, STDOUT_FILENO));
+					dup2(file, STDOUT_FILENO);
 					close(file);
-					close(fd[0]);
-					close(fd[1]);
 					execvp(e->cmd.exe, argv);
 				}
 				else if (line->out_type == OUTPUT_TYPE_FILE_APPEND)
 				{
+					if (*p2p_count % 2 == 1){
+						dup2(fd_next[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					} else {
+						dup2(fd_prev[0], STDIN_FILENO);
+						close(fd_prev[0]);
+						close(fd_prev[1]);
+						close(fd_next[0]);
+						close(fd_next[1]);
+					}
+
 					int file = open(line->out_file, O_RDWR | O_APPEND, S_IRUSR | S_IWUSR);
-					fprintf(stderr, "%d\n", dup2(fd[0], STDIN_FILENO));
-					fprintf(stderr, "%d\n", dup2(file, STDOUT_FILENO));
+					dup2(file, STDOUT_FILENO);
 					close(file);
-					close(fd[0]);
-					close(fd[1]);
 					execvp(e->cmd.exe, argv);
 				}
 			}
@@ -190,8 +232,10 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			}
 			else if (pid > 0)
 			{	
-				close(fd[0]);
-				close(fd[1]);
+				close(fd_prev[0]);
+				close(fd_prev[1]);
+				close(fd_next[0]);
+				close(fd_next[1]);
 
 				if (wait(&status) >= 0)
 				{
@@ -234,8 +278,10 @@ execute_command_line(const struct command_line *line, int *exit_status)
 	const struct expr *e = line->head;
 
 	int before_pipe = 0, after_pipe = 0;
-	int fd[2];
-	pipe(fd);
+	int p2p_count = 0;
+	int fd_prev[2], fd_next[2];
+	pipe(fd_prev);
+	pipe(fd_next);
 	while (e != NULL)
 	{
 		if (e->type == EXPR_TYPE_COMMAND)
@@ -253,7 +299,7 @@ execute_command_line(const struct command_line *line, int *exit_status)
 			{
 				after_pipe = 0;
 			}
-			execute_command(e, line, exit_status, &before_pipe, &after_pipe, fd);
+			execute_command(e, line, exit_status, &before_pipe, &after_pipe, fd_prev, fd_next, &p2p_count);
 		}
 		else if (e->type == EXPR_TYPE_PIPE)
 		{
