@@ -81,7 +81,7 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 			{
 				if (wait(&status) >= 0)
 				{
-					printf("Child process exited with %d status\n", WEXITSTATUS(status));
+					// printf("Child process exited with %d status\n", WEXITSTATUS(status));
 				}
 			}
 		} else if (*after_pipe == 1 && *before_pipe == 0) {
@@ -108,7 +108,7 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 
 				if (wait(&status) >= 0)
 				{
-					printf("Child process exited with %d status\n", WEXITSTATUS(status));
+					// printf("Child process exited with %d status\n", WEXITSTATUS(status));
 				}
 			}
 
@@ -156,7 +156,7 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 				if (wait(&status) >= 0)
 				{
 					*p2p_count += 1;
-					printf("Child process exited with %d status\n", WEXITSTATUS(status));
+					// printf("Child process exited with %d status\n", WEXITSTATUS(status));
 				}
 			}	
 		} else if (*after_pipe == 0 && *before_pipe == 1) {
@@ -239,7 +239,7 @@ void execute_command(const struct expr *e, const struct command_line *line, int 
 
 				if (wait(&status) >= 0)
 				{
-					printf("Child process exited with %d status\n", WEXITSTATUS(status));
+					// printf("Child process exited with %d status\n", WEXITSTATUS(status));
 				}
 			}
 		}	
@@ -254,27 +254,27 @@ execute_command_line(const struct command_line *line, int *exit_status)
 	/* REPLACE THIS CODE WITH ACTUAL COMMAND EXECUTION */
 
 	assert(line != NULL);
-	printf("================================\n");
-	printf("Command line:\n");
-	printf("Is background: %d\n", (int)line->is_background);
-	printf("Output: ");
+	// printf("================================\n");
+	// printf("Command line:\n");
+	// printf("Is background: %d\n", (int)line->is_background);
+	// printf("Output: ");
 	if (line->out_type == OUTPUT_TYPE_STDOUT)
 	{
-		printf("stdout\n");
+		// printf("stdout\n");
 	}
 	else if (line->out_type == OUTPUT_TYPE_FILE_NEW)
 	{
-		printf("new file - \"%s\"\n", line->out_file);
+		// printf("new file - \"%s\"\n", line->out_file);
 	}
 	else if (line->out_type == OUTPUT_TYPE_FILE_APPEND)
 	{
-		printf("append file - \"%s\"\n", line->out_file);
+		// printf("append file - \"%s\"\n", line->out_file);
 	}
 	else
 	{
 		assert(false);
 	}
-	printf("Expressions:\n");
+	// printf("Expressions:\n");
 	const struct expr *e = line->head;
 
 	int before_pipe = 0, after_pipe = 0;
@@ -286,11 +286,11 @@ execute_command_line(const struct command_line *line, int *exit_status)
 	{
 		if (e->type == EXPR_TYPE_COMMAND)
 		{
-			printf("\tArgs: %d\n", e->cmd.arg_count);
-			printf("\tCommand: %s", e->cmd.exe);
-			for (uint32_t i = 0; i < e->cmd.arg_count; ++i)
-				printf(" %s", e->cmd.args[i]);
-			printf("\n");
+			// printf("\tArgs: %d\n", e->cmd.arg_count);
+			// printf("\tCommand: %s", e->cmd.exe);
+			// for (uint32_t i = 0; i < e->cmd.arg_count; ++i)
+			// 	printf(" %s", e->cmd.args[i]);
+			// printf("\n");
 			if (e->next != NULL && e->next->type == EXPR_TYPE_PIPE)
 			{
 				after_pipe = 1;
@@ -304,15 +304,15 @@ execute_command_line(const struct command_line *line, int *exit_status)
 		else if (e->type == EXPR_TYPE_PIPE)
 		{
 			before_pipe = 1;
-			printf("\tPIPE\n");
+			// printf("\tPIPE\n");
 		}
 		else if (e->type == EXPR_TYPE_AND)
 		{
-			printf("\tAND\n");
+			// printf("\tAND\n");
 		}
 		else if (e->type == EXPR_TYPE_OR)
 		{
-			printf("\tOR\n");
+			// printf("\tOR\n");
 		}
 		else
 		{
