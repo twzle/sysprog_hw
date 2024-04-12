@@ -441,36 +441,8 @@ test_resize(void)
 #endif
 }
 
-int main(){
-    int fd = ufs_open("file", 0);
-	unit_check(fd == -1, "error when no such file");
-	unit_check(ufs_errno() == UFS_ERR_NO_FILE, "errno is 'no_file'");
-
-	fd = ufs_open("file", UFS_CREATE);
-	unit_check(fd != -1, "use 'create' now");
-	unit_check(ufs_close(fd) == 0, "close immediately");
-
-	fd = ufs_open("file", 0);
-	unit_check(fd != -1, "now open works without 'create'");
-	unit_fail_if(ufs_close(fd) != 0);
-
-	fd = ufs_open("file", UFS_CREATE);
-	unit_check(fd != -1, "'create' is not an error when file exists");
-
-	int fd2 = ufs_open("file", 0);
-	unit_check(fd2 != -1, "open second descriptor");
-	unit_check(fd2 != fd, "it is not the same in value");
-	unit_check(ufs_close(fd2) == 0, "close the second");
-
-	unit_check(ufs_close(fd) == 0, "and the first");
-
-	unit_check(ufs_delete("file") == 0, "deletion");
-	unit_check(ufs_open("file", 0) == -1, "now 'create' is needed again");
-    ufs_destroy();
-}
-
 int
-main_2(void)
+main(void)
 {
 	unit_test_start();
 
