@@ -2,51 +2,6 @@
 
 #include <sys/types.h>
 
-struct block
-{
-    /** Block memory. */
-    char *memory;
-    /** How many bytes are occupied. */
-    int occupied;
-    /** Next block in the file. */
-    struct block *next;
-    /** Previous block in the file. */
-    struct block *prev;
-
-    /* PUT HERE OTHER MEMBERS */
-};
-
-struct file
-{
-    /** Double-linked list of file new_blocks. */
-    struct block *block_list_head;
-    /**
-     * Last block in the list above for fast access to the end
-     * of file.
-     */
-    struct block *block_list_tail;
-    /** How many file descriptors are opened on the file. */
-    int refs;
-    /** File name. */
-    char *name;
-    /** Files are stored in a double-linked list. */
-    struct file *next;
-    struct file *prev;
-
-    int is_deleted;
-    int blocks_count;
-    /* PUT HERE OTHER MEMBERS */
-};
-
-struct filedesc
-{
-    struct file *file;
-    int position;
-    int permission;
-
-    /* PUT HERE OTHER MEMBERS */
-};
-
 /**
  * User-defined in-memory filesystem. It is as simple as possible.
  * Each file lies in the memory as an array of blocks. A file
@@ -64,9 +19,11 @@ struct filedesc
 
 /**
  * To allow resize() functions define this:
- *
- *     #define NEED_RESIZE
- *
+ */
+
+#define NEED_RESIZE
+
+/*
  * It is important to define these macros here, in the header,
  * because it is used by tests.
  */
