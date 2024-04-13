@@ -143,6 +143,7 @@ int ufs_open(const char *filename, int flags)
         struct filedesc *new_filedesc = malloc(sizeof(struct filedesc));
         new_filedesc->file = new_file;
         new_filedesc->position = 0;
+        new_filedesc->permission = UFS_READ_WRITE;
 
         if (file_descriptor_capacity == file_descriptor_count)
         {
@@ -215,6 +216,7 @@ int ufs_open(const char *filename, int flags)
             struct filedesc *new_filedesc = malloc(sizeof(struct filedesc));
             new_filedesc->file = existing_file;
             new_filedesc->position = 0;
+            new_filedesc->permission = flags == 0 ? UFS_READ_WRITE : flags;
 
             if (file_descriptor_capacity == file_descriptor_count)
             {
@@ -266,6 +268,11 @@ ufs_write(int fd, const char *buf, size_t size)
         return -1;
     }
 
+    if (descriptor->permission != UFS_WRITE_ONLY && descriptor->permission != UFS_READ_WRITE){
+        ufs_error_code = UFS_ERR_NO_PERMISSION;
+        return -1;
+    }
+
     if (size == 0)
     {
         ufs_error_code = UFS_ERR_NO_ERR;
@@ -290,9 +297,7 @@ ufs_write(int fd, const char *buf, size_t size)
         new_blocks_count = required_blocks_count - current_file->blocks_count;
     }
 
-    // printf("%d\n", current_file->blocks_count);
     current_file->blocks_count += new_blocks_count;
-    // printf("%d\n", current_file->blocks_count);
     if (new_blocks_count > 0)
     {
         struct block **new_blocks = malloc(sizeof(struct block*) * new_blocks_count);
@@ -412,6 +417,11 @@ ufs_read(int fd, char *buf, size_t size)
     struct filedesc *descriptor = file_descriptors[fd];
     if (descriptor == NULL){
         ufs_error_code = UFS_ERR_NO_FILE;
+        return -1;
+    }
+
+    if (descriptor->permission != UFS_READ_ONLY && descriptor->permission != UFS_READ_WRITE){
+        ufs_error_code = UFS_ERR_NO_PERMISSION;
         return -1;
     }
 
